@@ -28,6 +28,14 @@
 
     <section class="kpis" id="kpis"></section>
 
+    <section class="panel" id="waterfallPanel" hidden>
+      <div class="panel-head">
+        <h2>จากงบประมาณตั้งต้น สู่งบประมาณสุทธิ</h2>
+        <p class="desc">แสดงทุกขั้นที่ทำให้งบเปลี่ยนไป — แท่งสีแดง = ถูกหัก/โอนออก, แท่งสีเขียว = เพิ่มเข้ามา, แท่งสีเข้ม = ยอดรวม ณ จุดนั้น</p>
+      </div>
+      <div class="chart-card" id="waterfallChart"></div>
+    </section>
+
     <section class="panel" id="chartPanel" hidden>
       <div class="panel-head">
         <h2>สรุปตามหมวดงบประมาณ</h2>
@@ -50,6 +58,8 @@
   const fileMeta = document.getElementById('fileMeta');
   const pageContent = document.getElementById('page-content');
   const kpisEl = document.getElementById('kpis');
+  const waterfallPanel = document.getElementById('waterfallPanel');
+  const waterfallChart = document.getElementById('waterfallChart');
   const chartPanel = document.getElementById('chartPanel');
   const catChartEl = document.getElementById('categoryChart');
   const tapeWrap = document.getElementById('tapeWrap');
@@ -113,6 +123,8 @@
       ['ใช้จ่ายไปแล้ว', A.fmt(pct, 1), '%'],
     ].map(c => '<div class="kpi"><p class="k-label">' + c[0] + '</p><p class="k-value">' + c[1] + '<span class="k-unit">' + c[2] + '</span></p></div>').join('');
 
+    renderWaterfall(t);
+
     chartPanel.hidden = false;
     const byCat = {};
     s.projectRows.forEach(p => {
@@ -148,6 +160,29 @@
 
   function tapeLine(label, value) {
     return '<div class="tape-line"><span>' + label + '</span><span class="' + (value < 0 ? 'neg' : '') + '">' + A.fmt(value) + '</span></div>';
+  }
+
+  function renderWaterfall(t) {
+    waterfallPanel.hidden = false;
+    const steps = [
+      { label: 'งบประมาณตั้งต้น', from: 0, to: t.budgetStart, total: true },
+      { label: 'ปรับปรุงงบประมาณ', from: t.budgetStart, to: t.budgetStart + t.adjust, total: false },
+      { label: 'โอนย้ายงบประมาณ', from: t.budgetStart + t.adjust, to: t.budgetStart + t.adjust + t.transfer, total: false },
+      { label: 'งบประมาณสุทธิ', from: 0, to: t.budget, total: true },
+    ];
+    const scale = Math.max.apply(null, steps.map(s => Math.max(Math.abs(s.from), Math.abs(s.to))).concat([1]));
+    waterfallChart.innerHTML = steps.map(s => {
+      const delta = s.to - s.from;
+      const left = Math.min(s.from, s.to) / scale * 100;
+      const width = Math.max(Math.abs(delta) / scale * 100, 0.4);
+      const cls = s.total ? 'total' : (delta >= 0 ? 'pos' : 'neg');
+      const valueText = s.total ? A.fmt(s.to) : (delta >= 0 ? '+' : '') + A.fmt(delta);
+      const valueCls = s.total ? '' : (delta >= 0 ? 'pos' : 'neg');
+      return '<div class="wf-row">'
+        + '<div class="wf-label"><span class="wf-name">' + s.label + '</span><span class="wf-value ' + valueCls + '">' + valueText + ' บาท</span></div>'
+        + '<div class="wf-track"><div class="wf-fill ' + cls + '" style="left:' + left.toFixed(2) + '%; width:' + width.toFixed(2) + '%;"></div></div>'
+        + '</div>';
+    }).join('');
   }
 })();
 </script>
