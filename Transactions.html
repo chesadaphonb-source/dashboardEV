@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>สมุดบัญชีงบประมาณ · รายการธุรกรรมย่อย</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <div id="navPlaceholder"></div>
+
+  <div id="page-content">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>รายการธุรกรรมย่อยทั้งหมด</h2>
+        <div class="controls">
+          <input id="searchInput" type="search" placeholder="ค้นหารายละเอียด/รหัส/โครงการ…" />
+          <select id="categoryFilter"><option value="">ทุกหมวด</option></select>
+          <select id="signFilter">
+            <option value="">ทุกรายการ</option>
+            <option value="neg">มีค่าติดลบ (หัก/คืน/โอนออก) เท่านั้น</option>
+          </select>
+        </div>
+      </div>
+      <p class="desc" style="margin:-8px 0 14px;">แสดงทุกบรรทัดตามที่อยู่ในไฟล์ต้นฉบับ ยังไม่รวมยอด — ใช้หน้านี้เพื่อดูที่มาของยอดปรับปรุง/โอนย้าย/ขอจองเงิน/คืนเงินแต่ละรายการ ดูยอดรวมต่อโครงการได้ที่ <a href="projects.html">รายการโครงการ</a></p>
+      <div class="table-wrap">
+        <table id="txTable">
+          <thead>
+            <tr>
+              <th data-key="โครงการ">รหัสโครงการ</th>
+              <th data-key="คำอธิบาย2">รายละเอียดรายการ</th>
+              <th data-key="รหัสงบประมาณ">รหัสงบประมาณ</th>
+              <th data-key="งบประมาณตั้งต้น" class="num">งบตั้งต้น</th>
+              <th data-key="ปรับปรุงงบประมาณ" class="num">ปรับปรุง</th>
+              <th data-key="โอนย้ายงบประมาณ" class="num">โอนย้าย</th>
+              <th data-key="ขอจองเงิน" class="num">ขอจองเงิน</th>
+              <th data-key="คืนเงิน" class="num">คืนเงิน</th>
+              <th data-key="มูลค่าใบสั่งซื้อ" class="num">ใบสั่งซื้อ</th>
+              <th data-key="มูลค่าใบขอซื้อ" class="num">ใบขอซื้อ</th>
+              <th data-key="ยอดเงินจริง" class="num">เบิกจ่ายจริง</th>
+              <th data-key="ยอดเงินที่เหลือ" class="num">คงเหลือ</th>
+              <th data-key="__sheet">ชีทต้นฉบับ</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="row-count" id="rowCount"></p>
+    </section>
+  </div>
+</div>
+
+<script src="app-common.js"></script>
+<script>
+(function(){
+  const A = window.BudgetApp;
+  const session = A.loadSession();
+  A.renderNav('transactions', session);
+  const pageContent = document.getElementById('page-content');
+
+  if (!session) {
+    A.renderEmptyState(pageContent);
+    pageContent.classList.add('show');
+    return;
+  }
+
+  const codeToCategory = {};
+  session.projectRows.forEach(p => { codeToCategory[p.code] = p.category; });
+
+  const tableBody = document.querySelector('#txTable tbody');
+  const searchInput = document.getElementById('searchInput');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const signFilter = document.getElementById('signFilter');
+  const rowCount = document.getElementById('rowCount');
+  let sortKey = null, sortDir = 1;
+
+  const cats = Array.from(new Set(session.projectRows.map(p => p.category))).sort();
+  categoryFilter.innerHTML = '<option value="">ทุกหมวด</option>' + cats.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+
+  function rowHasNegative(r) {
+    return A.NUM_COLS.some(c => (Number(r[c]) || 0) < 0);
+  }
+
+  function render() {
+    const q = (searchInput.value || '').trim().toLowerCase();
+    const catF = categoryFilter.value;
+    const negOnly = signFilter.value === 'neg';
+
+    let rows = session.rawRows.filter(r => {
+      const proj = String(r['โครงการ'] || '');
+      const cat = codeToCategory[proj] || 'ไม่ระบุหมวด';
+      const desc2 = String(r['คำอธิบาย2'] || '');
+      const code = String(r['รหัสงบประมาณ'] || '');
+      const matchQ = !q || proj.toLowerCase().indexOf(q) !== -1 || desc2.toLowerCase().indexOf(q) !== -1 || code.toLowerCase().indexOf(q) !== -1;
+      const matchCat = !catF || cat === catF;
+      const matchSign = !negOnly || rowHasNegative(r);
+      return matchQ && matchCat && matchSign;
+    });
+
+    if (sortKey) {
+      rows = rows.slice().sort((a, b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        if (typeof av === 'string' || typeof bv === 'string') return String(av).localeCompare(String(bv), 'th') * sortDir;
+        return ((av || 0) - (bv || 0)) * sortDir;
+      });
+    }
+
+    const MAX_RENDER = 1000; // กันเบราว์เซอร์ค้างถ้าข้อมูลเยอะมาก
+    const shown = rows.slice(0, MAX_RENDER);
+    tableBody.innerHTML = shown.map(r => {
+      return '<tr>'
+        + '<td class="code-cell">' + (r['โครงการ'] || '') + '</td>'
+        + '<td class="desc-cell">' + (r['คำอธิบาย2'] || r['คำอธิบาย'] || '') + '</td>'
+        + '<td class="code-cell">' + (r['รหัสงบประมาณ'] || '') + '</td>'
+        + A.numCell(Number(r['งบประมาณตั้งต้น']) || 0)
+        + A.numCell(Number(r['ปรับปรุงงบประมาณ']) || 0)
+        + A.numCell(Number(r['โอนย้ายงบประมาณ']) || 0)
+        + A.numCell(Number(r['ขอจองเงิน']) || 0)
+        + A.numCell(Number(r['คืนเงิน']) || 0)
+        + A.numCell(Number(r['มูลค่าใบสั่งซื้อ']) || 0)
+        + A.numCell(Number(r['มูลค่าใบขอซื้อ']) || 0)
+        + A.numCell(Number(r['ยอดเงินจริง']) || 0)
+        + A.numCell(Number(r['ยอดเงินที่เหลือ']) || 0)
+        + '<td class="code-cell">' + (r.__sheet || '') + '</td>'
+        + '</tr>';
+    }).join('') || '<tr><td colspan="13" style="text-align:center; color:var(--ink-soft); padding:20px;">ไม่พบรายการที่ตรงกับเงื่อนไข</td></tr>';
+
+    rowCount.textContent = 'แสดง ' + shown.length + ' จาก ' + rows.length + ' รายการที่ตรงเงื่อนไข (ทั้งหมด ' + session.rawRows.length + ' แถว)'
+      + (rows.length > MAX_RENDER ? ' — จำกัดการแสดงผลที่ ' + MAX_RENDER + ' แถวแรก ใช้ช่องค้นหา/ตัวกรองเพื่อดูส่วนอื่น' : '');
+  }
+
+  document.querySelectorAll('#txTable thead th').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (key === sortKey) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+      render();
+    });
+  });
+  searchInput.addEventListener('input', render);
+  categoryFilter.addEventListener('change', render);
+  signFilter.addEventListener('change', render);
+
+  render();
+  requestAnimationFrame(() => pageContent.classList.add('show'));
+})();
+</script>
+</body>
+</html>
