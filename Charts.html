@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>สมุดบัญชีงบประมาณ · กราฟเปรียบเทียบ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <div id="navPlaceholder"></div>
+
+  <div id="page-content">
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>สัดส่วนงบประมาณ vs สัดส่วนเบิกจ่ายจริง (ตามหมวด)</h2>
+        <p class="desc">เทียบวงกลมสองวงข้างกัน — ถ้าหมวดไหนสัดส่วนในวงขวา (เบิกจ่ายจริง) ต่างจากวงซ้าย (งบที่ได้) มาก แปลว่าหมวดนั้นใช้จ่ายเร็ว/ช้ากว่าสัดส่วนงบที่ได้รับ</p>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>สัดส่วนงบประมาณสุทธิ</h3>
+          <p class="chart-sub">งบที่แต่ละหมวดได้รับ คิดเป็น % ของงบทั้งหมด</p>
+          <div id="donutBudget" class="donut-block"></div>
+        </div>
+        <div class="chart-card">
+          <h3>สัดส่วนเบิกจ่ายจริงสะสม</h3>
+          <p class="chart-sub">เงินที่ใช้จ่ายจริงไปแล้ว คิดเป็น % ของยอดเบิกจ่ายจริงทั้งหมด</p>
+          <div id="donutActual" class="donut-block"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>งบประมาณ เทียบกับ เบิกจ่ายจริง รายหมวด</h2>
+        <p class="desc">แท่งลาย = งบประมาณสุทธิของหมวดนั้น, แท่งทึบสี = เบิกจ่ายจริง — ใช้มาตราส่วนเดียวกันทุกหมวด เทียบขนาดหมวดต่อหมวดได้ตรงๆ</p>
+      </div>
+      <div class="chart-card" id="compareChart"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Top 10 โครงการที่มีเงินคงเหลือมากที่สุด</h2>
+        <p class="desc">โครงการที่ควรพิจารณาเร่งเบิกจ่ายก่อนสิ้นปีงบประมาณ ดูรายละเอียดเต็มที่ <a href="projects.html">รายการโครงการ</a></p>
+      </div>
+      <div class="chart-card" id="rankChart"></div>
+    </section>
+
+  </div>
+</div>
+
+<script src="app-common.js"></script>
+<script>
+(function(){
+  const A = window.BudgetApp;
+  const session = A.loadSession();
+  A.renderNav('charts', session);
+  const pageContent = document.getElementById('page-content');
+
+  if (!session) {
+    A.renderEmptyState(pageContent);
+    pageContent.classList.add('show');
+    return;
+  }
+
+  // สีต่อหมวด อ่านจาก CSS variable จริง (conic-gradient ใช้ค่า var() ตรงๆ ไม่ได้ในบางเบราว์เซอร์เก่า จึง resolve เป็น hex ก่อน)
+  function resolveColor(varExpr){
+    const m = /var\((--[\w-]+)\)/.exec(varExpr);
+    if (!m) return varExpr;
+    return getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() || '#8B8B7E';
+  }
+
+  const byCat = {};
+  session.projectRows.forEach(p => {
+    if (!byCat[p.category]) byCat[p.category] = { budget:0, actual:0, count:0 };
+    byCat[p.category].budget += p.budget;
+    byCat[p.category].actual += p['ยอดเงินจริง'];
+    byCat[p.category].count += 1;
+  });
+  const catNames = Object.keys(byCat).sort((a,b)=>byCat[b].budget - byCat[a].budget);
+  const catColors = {};
+  catNames.forEach(c => catColors[c] = resolveColor(A.CATEGORY_COLOR[c] || 'var(--neutral)'));
+
+  // ---------------- Donut chart builder ----------------
+  function buildDonut(container, values, totalLabel, totalValue){
+    const total = values.reduce((s,v)=>s+v.value, 0);
+    let acc = 0;
+    const stops = values.map(v => {
+      const start = total > 0 ? (acc/total*360) : 0;
+      acc += v.value;
+      const end = total > 0 ? (acc/total*360) : 0;
+      return v.color + ' ' + start.toFixed(2) + 'deg ' + end.toFixed(2) + 'deg';
+    }).join(', ');
+    const gradient = total > 0 ? 'conic-gradient(' + stops + ')' : 'var(--rule)';
+
+    const legend = values.map(v => {
+      const pct = total > 0 ? (v.value/total*100) : 0;
+      return '<div class="leg-row"><span class="swatch" style="background:'+v.color+';"></span>'
+        + '<span class="leg-name">'+v.label+'</span>'
+        + '<span class="leg-pct">'+pct.toFixed(1)+'%</span></div>';
+    }).join('');
+
+    container.innerHTML =
+      '<div class="donut-wrap">'
+      + '<div class="donut" style="background:'+gradient+';"></div>'
+      + '<div class="donut-hole"><span class="d-total">'+A.fmt(totalValue)+'</span><span class="d-label">'+totalLabel+'</span></div>'
+      + '</div>'
+      + '<div class="donut-legend">'+legend+'</div>';
+  }
+
+  const budgetValues = catNames.map(c => ({ label:c, value:byCat[c].budget, color:catColors[c] }));
+  const actualValues = catNames.map(c => ({ label:c, value:byCat[c].actual, color:catColors[c] }));
+  const totalBudget = budgetValues.reduce((s,v)=>s+v.value,0);
+  const totalActual = actualValues.reduce((s,v)=>s+v.value,0);
+  buildDonut(document.getElementById('donutBudget'), budgetValues, 'งบสุทธิ (บาท)', totalBudget);
+  buildDonut(document.getElementById('donutActual'), actualValues, 'เบิกจ่ายจริง (บาท)', totalActual);
+
+  // ---------------- Grouped comparison bars ----------------
+  const maxScale = Math.max(...catNames.map(c => Math.max(byCat[c].budget, byCat[c].actual)), 1);
+  const compareEl = document.getElementById('compareChart');
+  compareEl.innerHTML = catNames.map(c => {
+    const d = byCat[c];
+    const budgetPct = Math.min(100, d.budget / maxScale * 100);
+    const actualPct = Math.min(100, d.actual / maxScale * 100);
+    const color = catColors[c];
+    return '<div class="compare-row">'
+      + '<div class="cmp-label"><span>'+c+' <span style="font-weight:400; color:var(--ink-soft); font-size:11.5px;">('+d.count+' โครงการ)</span></span>'
+      + '<span class="cmp-figs">งบ '+A.fmt(d.budget)+' · เบิกจ่าย '+A.fmt(d.actual)+' บาท</span></div>'
+      + '<div class="cmp-bar-track"><div class="cmp-bar-fill budget" style="width:'+budgetPct.toFixed(1)+'%;"></div></div>'
+      + '<div class="cmp-bar-track"><div class="cmp-bar-fill" style="width:'+actualPct.toFixed(1)+'%; background:'+color+';"></div></div>'
+      + '</div>';
+  }).join('')
+  + '<div class="cmp-legend-row"><span><span class="dot" style="background:var(--ink-soft); opacity:.35;"></span>งบประมาณสุทธิ (แท่งลาย)</span><span><span class="dot" style="background:var(--moss);"></span>เบิกจ่ายจริง (แท่งทึบสี ตามสีหมวด)</span></div>';
+
+  // ---------------- Top 10 ranking by remaining ----------------
+  const top10 = session.projectRows.slice().sort((a,b) => b['ยอดเงินที่เหลือ'] - a['ยอดเงินที่เหลือ']).slice(0,10);
+  const maxRemain = Math.max(...top10.map(p => p['ยอดเงินที่เหลือ']), 1);
+  document.getElementById('rankChart').innerHTML = top10.map((p,i) => {
+    const pct = Math.max(0, Math.min(100, p['ยอดเงินที่เหลือ'] / maxRemain * 100));
+    return '<div class="rank-row">'
+      + '<div class="rk-label"><span class="rk-name">'+(i+1)+'. '+p.name+'</span><span class="rk-value">'+A.fmt(p['ยอดเงินที่เหลือ'])+' บาท</span></div>'
+      + '<div class="rk-track"><div class="rk-fill" style="width:'+pct.toFixed(1)+'%;"></div></div>'
+      + '</div>';
+  }).join('') || '<p style="color:var(--ink-soft);">ไม่มีข้อมูล</p>';
+
+  requestAnimationFrame(() => pageContent.classList.add('show'));
+})();
+</script>
+</body>
+</html>
