@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>สมุดบัญชีงบประมาณ · รายการโครงการ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <div id="navPlaceholder"></div>
+
+  <div id="page-content">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>รายการโครงการทั้งหมด (สรุปต่อโครงการ)</h2>
+        <div class="controls">
+          <input id="searchInput" type="search" placeholder="ค้นหาชื่อ/รหัสโครงการ…" />
+          <select id="categoryFilter"><option value="">ทุกหมวด</option></select>
+        </div>
+      </div>
+      <p class="desc" style="margin:-8px 0 14px;">ตัวเลขทุกคอลัมน์เป็นยอดสะสมของโครงการนั้น (รวมทุกรายการย่อย รวมส่วนที่ปรับปรุง/โอนย้าย/คืนเงินแล้ว) ตัวเลขในวงเล็บและสีแดง = ค่าติดลบ ดูรายการย่อยรายบรรทัดได้ที่ <a href="transactions.html">รายการธุรกรรมย่อย</a></p>
+      <div class="table-wrap">
+        <table id="projectTable">
+          <thead>
+            <tr>
+              <th data-key="name">โครงการ</th>
+              <th data-key="category">หมวด</th>
+              <th data-key="งบประมาณตั้งต้น" class="num">งบตั้งต้น</th>
+              <th data-key="ปรับปรุงงบประมาณ" class="num">ปรับปรุง</th>
+              <th data-key="โอนย้ายงบประมาณ" class="num">โอนย้าย</th>
+              <th data-key="budget" class="num">งบสุทธิ</th>
+              <th data-key="ขอจองเงิน" class="num">ขอจองเงิน</th>
+              <th data-key="คืนเงิน" class="num">คืนเงิน</th>
+              <th data-key="มูลค่าใบสั่งซื้อ" class="num">ใบสั่งซื้อ</th>
+              <th data-key="มูลค่าใบขอซื้อ" class="num">ใบขอซื้อ</th>
+              <th data-key="ยอดเงินจริง" class="num">เบิกจ่ายจริง</th>
+              <th data-key="ยอดเงินที่เหลือ" class="num">คงเหลือ</th>
+              <th data-key="pct" class="num">% ใช้ไป</th>
+              <th data-key="status">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="row-count" id="rowCount"></p>
+    </section>
+  </div>
+</div>
+
+<script src="app-common.js"></script>
+<script>
+(function(){
+  const A = window.BudgetApp;
+  const session = A.loadSession();
+  A.renderNav('projects', session);
+  const pageContent = document.getElementById('page-content');
+
+  if (!session) {
+    A.renderEmptyState(pageContent);
+    pageContent.classList.add('show');
+    return;
+  }
+
+  const tableBody = document.querySelector('#projectTable tbody');
+  const searchInput = document.getElementById('searchInput');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const rowCount = document.getElementById('rowCount');
+  let sortKey = 'ยอดเงินที่เหลือ', sortDir = -1;
+
+  const cats = Array.from(new Set(session.projectRows.map(p => p.category))).sort();
+  categoryFilter.innerHTML = '<option value="">ทุกหมวด</option>' + cats.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+
+  function render() {
+    const q = (searchInput.value || '').trim().toLowerCase();
+    const catF = categoryFilter.value;
+    let rows = session.projectRows.filter(p =>
+      (!q || p.name.toLowerCase().indexOf(q) !== -1 || p.code.toLowerCase().indexOf(q) !== -1) &&
+      (!catF || p.category === catF)
+    );
+    rows = rows.slice().sort((a, b) => {
+      const av = a[sortKey], bv = b[sortKey];
+      if (typeof av === 'string') return av.localeCompare(bv, 'th') * sortDir;
+      return ((av || 0) - (bv || 0)) * sortDir;
+    });
+    tableBody.innerHTML = rows.map(p => {
+      const st = A.statusFor(p.pct, p.budget);
+      return '<tr>'
+        + '<td><span class="proj-name">' + p.name + '</span><span class="proj-code">' + p.code + '</span></td>'
+        + '<td><span class="tag-cat">' + p.category + '</span></td>'
+        + A.numCell(p['งบประมาณตั้งต้น'])
+        + A.numCell(p['ปรับปรุงงบประมาณ'])
+        + A.numCell(p['โอนย้ายงบประมาณ'])
+        + A.numCell(p.budget)
+        + A.numCell(p['ขอจองเงิน'])
+        + A.numCell(p['คืนเงิน'])
+        + A.numCell(p['มูลค่าใบสั่งซื้อ'])
+        + A.numCell(p['มูลค่าใบขอซื้อ'])
+        + A.numCell(p['ยอดเงินจริง'])
+        + A.numCell(p['ยอดเงินที่เหลือ'])
+        + '<td class="num">' + (p.budget > 0 ? p.pct.toFixed(1) + '%' : '—') + '</td>'
+        + '<td><span class="pill ' + st.cls + '">' + st.label + '</span></td>'
+        + '</tr>';
+    }).join('') || '<tr><td colspan="14" style="text-align:center; color:var(--ink-soft); padding:20px;">ไม่พบรายการที่ตรงกับเงื่อนไข</td></tr>';
+    rowCount.textContent = 'แสดง ' + rows.length + ' จาก ' + session.projectRows.length + ' โครงการ';
+  }
+
+  document.querySelectorAll('#projectTable thead th').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (key === sortKey) sortDir *= -1; else { sortKey = key; sortDir = (key === 'name' || key === 'category' || key === 'status') ? 1 : -1; }
+      render();
+    });
+  });
+  searchInput.addEventListener('input', render);
+  categoryFilter.addEventListener('change', render);
+
+  render();
+  requestAnimationFrame(() => pageContent.classList.add('show'));
+})();
+</script>
+</body>
+</html>
