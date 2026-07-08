@@ -198,6 +198,19 @@ tbody tr:hover{background:#F1F0E4;}
 .rk-track{height:16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px; overflow:hidden;}
 .rk-fill{height:100%; background:var(--moss); border-radius:2px;}
 
+/* ---------- waterfall / budget bridge (index.html) ---------- */
+.wf-row{margin-bottom:14px;}
+.wf-row .wf-label{display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px; gap:10px;}
+.wf-row .wf-name{font-weight:600;}
+.wf-row .wf-value{font-family:'IBM Plex Mono',monospace; font-weight:600; white-space:nowrap;}
+.wf-row .wf-value.pos{color:var(--moss);}
+.wf-row .wf-value.neg{color:var(--oxblood);}
+.wf-track{position:relative; height:18px; background:var(--paper); border:1px solid var(--rule); border-radius:3px;}
+.wf-fill{position:absolute; top:0; height:100%; border-radius:2px;}
+.wf-fill.total{background:var(--teal);}
+.wf-fill.pos{background:var(--moss);}
+.wf-fill.neg{background:var(--oxblood);}
+
 #page-content{opacity:0; transform:translateY(8px); transition:opacity .3s ease, transform .3s ease;}
 #page-content.show{opacity:1; transform:none;}
 @media (prefers-reduced-motion: reduce){ #page-content{transition:none;} .dropzone{transition:none;} }
