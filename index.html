@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>สมุดบัญชีงบประมาณ · คณะสิ่งแวดล้อม</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper:#EDEEE3;
+    --card:#F8F7EF;
+    --ink:#1E2E22;
+    --ink-soft:#516153;
+    --rule:#C3CBB4;
+    --teal:#2C4A3E;   /* งบบุคลากร */
+    --moss:#4C6B3F;   /* งบดำเนินงาน / เหลือมาก */
+    --slate:#48586A;  /* งบลงทุน */
+    --amber:#A47417;  /* งบอุดหนุน / ปานกลาง */
+    --oxblood:#8C3B2E;/* งบรายจ่ายอื่น / ใกล้หมด */
+    --neutral:#8B8B7E;/* ไม่ระบุหมวด */
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Thai','IBM Plex Sans',sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace; font-variant-numeric: tabular-nums;}
+  h1,h2,h3{font-family:'Noto Serif Thai','Noto Serif',serif; font-weight:700; margin:0;}
+  a,button,input,select{font-family:inherit;}
+  :focus-visible{outline:3px solid var(--slate); outline-offset:2px;}
+
+  .app{max-width:1040px; margin:0 auto; padding:32px 20px 80px;}
+
+  /* ---------- Cover / upload ---------- */
+  .cover{padding:28px 0 8px; border-bottom:1px solid var(--rule); margin-bottom:28px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-soft); margin:0 0 10px;
+  }
+  .cover h1{font-size:clamp(28px,4vw,40px); color:var(--ink);}
+  .cover .sub{color:var(--ink-soft); max-width:62ch; margin:10px 0 22px; font-size:15px;}
+
+  .dropzone{
+    position:relative;
+    border:2px dashed var(--rule);
+    border-radius:6px;
+    background:var(--card);
+    padding:28px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .dropzone:hover, .dropzone.drag{border-color:var(--teal); background:#F2F1E6;}
+  .drop-label{margin:0 0 4px; font-size:16px;}
+  .drop-label .link{color:var(--teal); text-decoration:underline; text-underline-offset:3px;}
+  .drop-hint{margin:0; font-size:12.5px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;}
+  .file-meta{margin:12px 2px 0; font-size:13px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;}
+  .file-meta strong{color:var(--ink);}
+
+  /* ---------- KPI tags ---------- */
+  .kpis{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:14px; margin:0 0 30px;
+  }
+  .kpi{
+    position:relative;
+    background:var(--card);
+    padding:16px 18px 16px 26px;
+    clip-path:polygon(0 0, 90% 0, 100% 50%, 90% 100%, 0 100%);
+  }
+  .kpi::before{
+    content:""; position:absolute; left:9px; top:50%; transform:translateY(-50%);
+    width:8px; height:8px; border-radius:50%; background:var(--paper);
+    box-shadow: inset 0 0 0 1px var(--rule);
+  }
+  .kpi .k-label{font-size:12px; color:var(--ink-soft); margin:0 0 6px;}
+  .kpi .k-value{font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; color:var(--ink); white-space:nowrap;}
+  .kpi .k-unit{font-size:11px; color:var(--ink-soft); margin-left:4px; font-family:'IBM Plex Sans Thai',sans-serif;}
+
+  /* ---------- Panels ---------- */
+  .panel{margin-bottom:34px;}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px;}
+  .panel-head h2{font-size:19px;}
+  .controls{display:flex; gap:8px; flex-wrap:wrap;}
+  .controls input, .controls select{
+    border:1px solid var(--rule); background:var(--card); color:var(--ink);
+    padding:8px 10px; border-radius:4px; font-size:13.5px;
+  }
+  .controls input{min-width:200px;}
+
+  /* ---------- Category chart ---------- */
+  .cat-row{
+    background:var(--card); border-radius:4px; padding:12px 14px; margin-bottom:8px;
+  }
+  .cat-row .cat-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:8px; flex-wrap:wrap;}
+  .cat-row .cat-name{font-weight:600; font-size:14.5px;}
+  .cat-row .cat-count{font-size:12px; color:var(--ink-soft); margin-left:6px; font-weight:400;}
+  .cat-row .cat-figs{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink-soft);}
+  .cat-track{height:10px; background:var(--paper); border:1px solid var(--rule); border-radius:3px; overflow:hidden;}
+  .cat-fill{height:100%; border-radius:2px;}
+
+  /* ---------- Table ---------- */
+  .table-wrap{overflow-x:auto; background:var(--card); border-radius:4px; border:1px solid var(--rule);}
+  table{width:100%; border-collapse:collapse; font-size:13.5px; min-width:720px;}
+  thead th{
+    text-align:left; padding:10px 12px; font-size:12px; letter-spacing:.03em;
+    color:var(--ink-soft); border-bottom:1px solid var(--rule); cursor:pointer; user-select:none;
+    white-space:nowrap;
+  }
+  thead th.num{text-align:right;}
+  thead th .arrow{font-size:10px; margin-left:3px; opacity:.6;}
+  tbody td{padding:9px 12px; border-bottom:1px solid #E4E4D6; vertical-align:top;}
+  tbody td.num{text-align:right; font-family:'IBM Plex Mono',monospace; white-space:nowrap;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#F1F0E4;}
+  .proj-name{max-width:340px; display:block; font-size:13.5px;}
+  .proj-code{display:block; font-size:11px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;}
+  .tag-cat{
+    display:inline-block; font-size:11px; padding:2px 7px; border-radius:3px;
+    background:rgba(0,0,0,.05); white-space:nowrap;
+  }
+  .pill{display:inline-block; font-size:11.5px; padding:3px 9px; border-radius:3px; font-weight:600; white-space:nowrap;}
+  .pill--high{background:rgba(140,59,46,.13); color:var(--oxblood);}
+  .pill--mid{background:rgba(164,116,23,.15); color:var(--amber);}
+  .pill--low{background:rgba(76,107,63,.14); color:var(--moss);}
+  .pill--none{background:rgba(139,139,126,.15); color:var(--neutral);}
+
+  /* ---------- Tape (summary receipt) ---------- */
+  .tape-wrap{display:flex; justify-content:center; margin:40px 0 30px;}
+  .tape{
+    position:relative; width:280px; background:var(--card);
+    padding:22px 20px 30px; box-shadow:0 6px 18px rgba(30,46,34,.08);
+  }
+  .tape-title{font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:.08em;
+    text-transform:uppercase; text-align:center; color:var(--ink-soft); margin:0 0 14px;}
+  .tape-line{display:flex; justify-content:space-between; font-size:12.5px; padding:4px 0;
+    border-bottom:1px dashed var(--rule); font-family:'IBM Plex Mono',monospace;}
+  .tape-line span:first-child{font-family:'IBM Plex Sans Thai',sans-serif; color:var(--ink-soft); max-width:56%;}
+  .tape-total{display:flex; justify-content:space-between; font-size:15px; font-weight:700;
+    margin-top:10px; padding-top:8px; border-top:2px solid var(--ink); font-family:'IBM Plex Mono',monospace;}
+  .tape-total span:first-child{font-family:'Noto Serif Thai',serif; font-size:14px;}
+  .tape::after{
+    content:""; position:absolute; left:0; right:0; bottom:-11px; height:14px; background:var(--card);
+    clip-path:polygon(0% 0%,4% 100%,8% 0%,12% 100%,16% 0%,20% 100%,24% 0%,28% 100%,32% 0%,36% 100%,
+      40% 0%,44% 100%,48% 0%,52% 100%,56% 0%,60% 100%,64% 0%,68% 100%,72% 0%,76% 100%,
+      80% 0%,84% 100%,88% 0%,92% 100%,96% 0%,100% 100%);
+  }
+
+  .skip-note{font-size:12px; color:var(--ink-soft); text-align:center; margin:0 0 10px;}
+  .reset-row{text-align:center;}
+  .reset-btn{
+    background:none; border:1px solid var(--rule); color:var(--ink-soft);
+    padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;
+  }
+  .reset-btn:hover{border-color:var(--teal); color:var(--teal);}
+
+  #dashboard{opacity:0; transform:translateY(8px); transition:opacity .35s ease, transform .35s ease;}
+  #dashboard.show{opacity:1; transform:none;}
+  @media (prefers-reduced-motion: reduce){
+    #dashboard{transition:none;}
+    .dropzone{transition:none;}
+  }
+  @media (max-width:560px){
+    .proj-name{max-width:160px;}
+    .tape{width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="cover">
+    <p class="eyebrow">คณะสิ่งแวดล้อม มหาวิทยาลัยเกษตรศาสตร์ · ระบบติดตามงบประมาณ</p>
+    <h1>สมุดบัญชีงบประมาณ</h1>
+    <p class="sub">อัปโหลดไฟล์ Excel รายงานสถานะงบประมาณ (.xlsx) เพื่อสรุปเป็นแดชบอร์ดทันที การประมวลผลทั้งหมดเกิดขึ้นในเบราว์เซอร์ของคุณเท่านั้น ไม่มีข้อมูลถูกส่งออกไปที่ใด</p>
+
+    <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="อัปโหลดไฟล์ Excel">
+      <input type="file" id="fileInput" accept=".xlsx,.xls" hidden />
+      <p class="drop-label">ลากไฟล์มาวางตรงนี้ หรือ <span class="link">เลือกไฟล์</span></p>
+      <p class="drop-hint">ต้องมีคอลัมน์ โครงการ · งบประมาณตั้งต้น · ยอดเงินจริง · ยอดเงินที่เหลือ ฯลฯ</p>
+    </div>
+    <p id="fileMeta" class="file-meta" hidden></p>
+  </header>
+
+  <main id="dashboard" hidden>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>สรุปตามหมวดงบประมาณ</h2></div>
+      <div id="categoryChart"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>รายการโครงการทั้งหมด</h2>
+        <div class="controls">
+          <input id="searchInput" type="search" placeholder="ค้นหาชื่อโครงการ…" />
+          <select id="categoryFilter"><option value="">ทุกหมวด</option></select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="projectTable">
+          <thead>
+            <tr>
+              <th data-key="name">โครงการ</th>
+              <th data-key="category">หมวด</th>
+              <th data-key="budget" class="num">งบสุทธิ (บาท)</th>
+              <th data-key="actual" class="num">เบิกจ่ายจริง (บาท)</th>
+              <th data-key="remaining" class="num">คงเหลือ (บาท)</th>
+              <th data-key="pct" class="num">% ใช้ไป</th>
+              <th data-key="status">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="tape-wrap"><div class="tape" id="tape"></div></div>
+
+    <p class="skip-note" id="skipNote"></p>
+    <div class="reset-row"><button id="resetBtn" class="reset-btn">อัปโหลดไฟล์ใหม่</button></div>
+  </main>
+
+</div>
+
+<script>
+(function(){
+  const NUM_COLS = ['งบประมาณตั้งต้น','ปรับปรุงงบประมาณ','โอนย้ายงบประมาณ','ขอจองเงิน','คืนเงิน','มูลค่าใบสั่งซื้อ','มูลค่าใบขอซื้อ','ยอดเงินจริง','ยอดเงินที่เหลือ'];
+  const CATEGORY_NAMES = ['งบบุคลากร','งบดำเนินงาน','งบลงทุน','งบอุดหนุน','งบรายจ่ายอื่น','งบกลาง'];
+  const CATEGORY_COLOR = {
+    'งบบุคลากร':'var(--teal)',
+    'งบดำเนินงาน':'var(--moss)',
+    'งบลงทุน':'var(--slate)',
+    'งบอุดหนุน':'var(--amber)',
+    'งบรายจ่ายอื่น':'var(--oxblood)',
+    'งบกลาง':'#6B5B95',
+    'ไม่ระบุหมวด':'var(--neutral)'
+  };
+  const SUMMARY_ROW_NAMES = ['รวม','total','grand total']; // grand-total rows baked into the sheet — must be excluded, not counted as a project
+  const LARGE_FILE_WARN_MB = 15;
+
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileMeta = document.getElementById('fileMeta');
+  const dashboard = document.getElementById('dashboard');
+  const kpisEl = document.getElementById('kpis');
+  const catChartEl = document.getElementById('categoryChart');
+  const tableBody = document.querySelector('#projectTable tbody');
+  const searchInput = document.getElementById('searchInput');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const skipNote = document.getElementById('skipNote');
+  const tapeEl = document.getElementById('tape');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let projectRows = []; // aggregated per project
+  let sortKey = 'remaining', sortDir = -1;
+
+  function fmt(n, decimals){
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    const d = decimals === undefined ? 0 : decimals;
+    const abs = Math.abs(n);
+    const s = abs.toLocaleString('th-TH', {minimumFractionDigits:d, maximumFractionDigits:2});
+    return n < 0 ? '(' + s + ')' : s;
+  }
+
+  function statusFor(pct, budget){
+    if (!budget || budget <= 0) return {label:'ไม่มีงบ', cls:'pill--none'};
+    if (pct >= 90) return {label:'ใกล้หมด', cls:'pill--high'};
+    if (pct >= 60) return {label:'ปานกลาง', cls:'pill--mid'};
+    return {label:'เหลือมาก', cls:'pill--low'};
+  }
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' ') fileInput.click(); });
+  ['dragover','dragenter'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+  dropzone.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
+  fileInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) handleFile(f); });
+  resetBtn.addEventListener('click', () => {
+    dashboard.classList.remove('show');
+    dashboard.hidden = true;
+    fileMeta.hidden = true;
+    fileInput.value = '';
+  });
+
+  function handleFile(file){
+    const mb = file.size / (1024*1024);
+    fileMeta.hidden = false;
+    fileMeta.innerHTML = 'กำลังประมวลผล <strong>' + file.name + '</strong> (' + mb.toFixed(1) + ' MB) …'
+      + (mb > LARGE_FILE_WARN_MB ? ' ไฟล์มีขนาดใหญ่ อาจใช้เวลาสักครู่' : '');
+    // yield to the browser so the message above actually paints before the heavy parse below
+    setTimeout(() => {
+      const reader = new FileReader();
+      reader.onload = function(e){
+        try{
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, {type:'array', cellDates:false});
+          process(wb, file.name, mb);
+        }catch(err){
+          fileMeta.innerHTML = 'อ่านไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+        }
+      };
+      reader.onerror = function(){ fileMeta.innerHTML = 'อ่านไฟล์ไม่สำเร็จ'; };
+      reader.readAsArrayBuffer(file);
+    }, 30);
+  }
+
+  function process(wb, fileName, mb){
+    const allRows = [];
+    const skipped = [];
+    wb.SheetNames.forEach(name => {
+      const ws = wb.Sheets[name];
+      if (!ws){ skipped.push(name); return; } // sheet failed to parse (often a bloated/oversized sheet — see note below
+      const json = XLSX.utils.sheet_to_json(ws, {defval:0, raw:true});
+      if (json.length === 0){ skipped.push(name); return; }
+      const headers = Object.keys(json[0]);
+      const hasProj = headers.some(h => h.trim() === 'โครงการ');
+      const hasBudget = headers.some(h => h.trim() === 'งบประมาณตั้งต้น');
+      if (hasProj && hasBudget){
+        json.forEach(r => allRows.push(r));
+      } else {
+        skipped.push(name);
+      }
+    });
+
+    if (allRows.length === 0){
+      fileMeta.innerHTML = 'ไม่พบชีทที่มีโครงสร้างคอลัมน์ที่รองรับ (ต้องมี "โครงการ" และ "งบประมาณตั้งต้น")';
+      return;
+    }
+
+    // Build category + project-name map from rows whose description names a category
+    const isSummaryRow = proj => SUMMARY_ROW_NAMES.includes(proj.toLowerCase());
+
+    const categoryMap = {};
+    const nameMap = {};
+    allRows.forEach(r => {
+      const proj = String(r['โครงการ'] || '').trim();
+      if (!proj || isSummaryRow(proj)) return;
+      if (!nameMap[proj]) nameMap[proj] = String(r['คำอธิบาย'] || proj).trim();
+      if (!categoryMap[proj]){
+        const desc = String(r['คำอธิบาย'] || '') + ' ' + String(r['คำอธิบาย2'] || '');
+        const match = CATEGORY_NAMES.find(c => desc.indexOf(c) !== -1);
+        if (match) categoryMap[proj] = match;
+      }
+    });
+
+    // Aggregate per project
+    const agg = {};
+    allRows.forEach(r => {
+      const proj = String(r['โครงการ'] || '').trim();
+      if (!proj || isSummaryRow(proj)) return;
+      if (!agg[proj]){
+        agg[proj] = {code:proj, name:nameMap[proj] || proj, category: categoryMap[proj] || 'ไม่ระบุหมวด'};
+        NUM_COLS.forEach(c => agg[proj][c] = 0);
+      }
+      NUM_COLS.forEach(c => { agg[proj][c] += Number(r[c]) || 0; });
+    });
+
+    projectRows = Object.values(agg).map(p => {
+      const budget = p['งบประมาณตั้งต้น'] + p['ปรับปรุงงบประมาณ'] + p['โอนย้ายงบประมาณ'];
+      const actual = p['ยอดเงินจริง'];
+      const remaining = p['ยอดเงินที่เหลือ'];
+      const po = p['มูลค่าใบสั่งซื้อ'];
+      const pct = budget > 0 ? (actual / budget * 100) : (actual > 0 ? 100 : 0);
+      return {
+        code: p.code, name: p.name, category: p.category,
+        budget, actual, remaining, po, pct
+      };
+    });
+
+    renderKPIs();
+    renderCategoryChart();
+    renderCategoryFilterOptions();
+    renderTable();
+    renderTape();
+
+    fileMeta.hidden = false;
+    fileMeta.innerHTML = 'ไฟล์: <strong>' + fileName + '</strong> (' + mb.toFixed(1) + ' MB) · ' + projectRows.length + ' โครงการ · ' + allRows.length + ' แถวข้อมูล';
+    skipNote.innerHTML = skipped.length
+      ? 'ไม่ได้รวมชีท: ' + skipped.join(', ') + ' — มักเกิดจากชีทมีขนาดใหญ่ผิดปกติ (การจัดรูปแบบ/เส้นตารางลากเกินขอบเขตข้อมูลจริงไปหลายแสนแถว) '
+        + 'วิธีแก้: เปิดไฟล์ใน Excel → ไปที่ชีทนั้น → กด Ctrl+End เพื่อดูเซลล์สุดท้ายจริง หากไกลเกินข้อมูล ให้เลือกแถว/คอลัมน์ส่วนเกินแล้ว "Delete" (ไม่ใช่แค่ Clear Contents) จากนั้นบันทึกใหม่แล้วอัปโหลดอีกครั้ง'
+      : '';
+
+    dashboard.hidden = false;
+    requestAnimationFrame(() => dashboard.classList.add('show'));
+  }
+
+  function totals(){
+    return projectRows.reduce((t,p) => {
+      t.budget += p.budget; t.actual += p.actual; t.remaining += p.remaining; t.po += p.po;
+      return t;
+    }, {budget:0, actual:0, remaining:0, po:0});
+  }
+
+  function renderKPIs(){
+    const t = totals();
+    const pct = t.budget > 0 ? (t.actual / t.budget * 100) : 0;
+    const cards = [
+      ['งบประมาณสุทธิ', fmt(t.budget), 'บาท'],
+      ['เบิกจ่ายจริงสะสม', fmt(t.actual), 'บาท'],
+      ['คงเหลือสุทธิ', fmt(t.remaining), 'บาท'],
+      ['ใบสั่งซื้อคงค้าง', fmt(t.po), 'บาท'],
+      ['ใช้จ่ายไปแล้ว', fmt(pct,1), '%'],
+    ];
+    kpisEl.innerHTML = cards.map(c =>
+      '<div class="kpi"><p class="k-label">'+c[0]+'</p><p class="k-value">'+c[1]+'<span class="k-unit">'+c[2]+'</span></p></div>'
+    ).join('');
+  }
+
+  function renderCategoryChart(){
+    const byCat = {};
+    projectRows.forEach(p => {
+      if (!byCat[p.category]) byCat[p.category] = {budget:0, actual:0, remaining:0, count:0};
+      byCat[p.category].budget += p.budget;
+      byCat[p.category].actual += p.actual;
+      byCat[p.category].remaining += p.remaining;
+      byCat[p.category].count += 1;
+    });
+    const cats = Object.keys(byCat).sort((a,b) => byCat[b].budget - byCat[a].budget);
+    catChartEl.innerHTML = cats.map(cat => {
+      const d = byCat[cat];
+      const pct = d.budget > 0 ? Math.min(100, d.actual / d.budget * 100) : 0;
+      const color = CATEGORY_COLOR[cat] || 'var(--neutral)';
+      return '<div class="cat-row">'
+        + '<div class="cat-head">'
+        +   '<span class="cat-name">'+cat+'<span class="cat-count">'+d.count+' โครงการ</span></span>'
+        +   '<span class="cat-figs">งบ '+fmt(d.budget)+' · เบิกจ่าย '+fmt(d.actual)+' · คงเหลือ '+fmt(d.remaining)+' บาท</span>'
+        + '</div>'
+        + '<div class="cat-track"><div class="cat-fill" style="width:'+pct.toFixed(1)+'%; background:'+color+';"></div></div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function renderCategoryFilterOptions(){
+    const cats = Array.from(new Set(projectRows.map(p => p.category))).sort();
+    categoryFilter.innerHTML = '<option value="">ทุกหมวด</option>' +
+      cats.map(c => '<option value="'+c+'">'+c+'</option>').join('');
+  }
+
+  function renderTable(){
+    const q = (searchInput.value || '').trim().toLowerCase();
+    const catF = categoryFilter.value;
+    let rows = projectRows.filter(p =>
+      (!q || p.name.toLowerCase().indexOf(q) !== -1 || p.code.toLowerCase().indexOf(q) !== -1) &&
+      (!catF || p.category === catF)
+    );
+    rows = rows.slice().sort((a,b) => {
+      let av = a[sortKey], bv = b[sortKey];
+      if (typeof av === 'string') return av.localeCompare(bv, 'th') * sortDir;
+      return (av - bv) * sortDir;
+    });
+    tableBody.innerHTML = rows.map(p => {
+      const st = statusFor(p.pct, p.budget);
+      return '<tr>'
+        + '<td><span class="proj-name">'+p.name+'</span><span class="proj-code">'+p.code+'</span></td>'
+        + '<td><span class="tag-cat">'+p.category+'</span></td>'
+        + '<td class="num">'+fmt(p.budget)+'</td>'
+        + '<td class="num">'+fmt(p.actual)+'</td>'
+        + '<td class="num">'+fmt(p.remaining)+'</td>'
+        + '<td class="num">'+(p.budget>0? p.pct.toFixed(1)+'%' : '—')+'</td>'
+        + '<td><span class="pill '+st.cls+'">'+st.label+'</span></td>'
+        + '</tr>';
+    }).join('') || '<tr><td colspan="7" style="text-align:center; color:var(--ink-soft); padding:20px;">ไม่พบรายการที่ตรงกับเงื่อนไข</td></tr>';
+  }
+
+  function renderTape(){
+    const t = totals();
+    tapeEl.innerHTML =
+      '<p class="tape-title">สรุปยอดรวม</p>'
+      + '<div class="tape-line"><span>งบประมาณสุทธิ</span><span>'+fmt(t.budget)+'</span></div>'
+      + '<div class="tape-line"><span>เบิกจ่ายจริงสะสม</span><span>'+fmt(t.actual)+'</span></div>'
+      + '<div class="tape-line"><span>ใบสั่งซื้อคงค้าง</span><span>'+fmt(t.po)+'</span></div>'
+      + '<div class="tape-total"><span>คงเหลือสุทธิ</span><span>'+fmt(t.remaining)+'</span></div>';
+  }
+
+  document.querySelectorAll('#projectTable thead th').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (key === sortKey) sortDir *= -1; else { sortKey = key; sortDir = key==='name'||key==='category'||key==='status' ? 1 : -1; }
+      renderTable();
+    });
+  });
+  searchInput.addEventListener('input', renderTable);
+  categoryFilter.addEventListener('change', renderTable);
+})();
+</script>
+</body>
+</html>
