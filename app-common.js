@@ -182,6 +182,7 @@ window.BudgetApp = (function () {
         '<div class="brand"><p class="eyebrow">คณะสิ่งแวดล้อม มก. · ระบบติดตามงบประมาณ</p><h1>สมุดบัญชีงบประมาณ</h1></div>' +
         '<div class="tabs">' +
           tab('index.html', 'ภาพรวม', 'overview') +
+          tab('charts.html', 'กราฟเปรียบเทียบ', 'charts') +
           tab('projects.html', 'รายการโครงการ', 'projects') +
           tab('transactions.html', 'รายการธุรกรรมย่อย', 'transactions') +
         '</div>' +
