@@ -50,6 +50,14 @@
       <div class="chart-card" id="rankChart"></div>
     </section>
 
+    <section class="panel">
+      <div class="panel-head">
+        <h2>โครงการที่ถูกโอนย้าย/คืนเงินออกมากที่สุด</h2>
+        <p class="desc">รวม "โอนย้ายงบประมาณ" + "คืนเงิน" ต่อโครงการ (เฉพาะยอดที่เป็นค่าติดลบ คือถูกดึงงบออก) เรียงจากมากไปน้อย ใช้ตรวจสอบว่างบที่หายไปจากงบตั้งต้นไปโผล่ที่โครงการไหนบ้าง — ดูรายการดิบทีละบรรทัดได้ที่ <a href="transactions.html">รายการธุรกรรมย่อย</a></p>
+      </div>
+      <div class="chart-card" id="deductChart"></div>
+    </section>
+
   </div>
 </div>
 
@@ -146,6 +154,21 @@
       + '<div class="rk-track"><div class="rk-fill" style="width:'+pct.toFixed(1)+'%;"></div></div>'
       + '</div>';
   }).join('') || '<p style="color:var(--ink-soft);">ไม่มีข้อมูล</p>';
+
+  // ---------------- Top negative transfer/refund ranking ----------------
+  const withDeduct = session.projectRows.map(p => {
+    const transferOut = Math.min(0, p['โอนย้ายงบประมาณ']);
+    const refundOut = Math.min(0, p['คืนเงิน']);
+    return { name: p.name, deduct: transferOut + refundOut };
+  }).filter(p => p.deduct < 0).sort((a,b) => a.deduct - b.deduct).slice(0,10);
+  const maxDeduct = Math.max(...withDeduct.map(p => Math.abs(p.deduct)), 1);
+  document.getElementById('deductChart').innerHTML = withDeduct.length ? withDeduct.map((p,i) => {
+    const pct = Math.max(0, Math.min(100, Math.abs(p.deduct) / maxDeduct * 100));
+    return '<div class="rank-row">'
+      + '<div class="rk-label"><span class="rk-name">'+(i+1)+'. '+p.name+'</span><span class="rk-value" style="color:var(--oxblood);">'+A.fmt(p.deduct)+' บาท</span></div>'
+      + '<div class="rk-track"><div class="rk-fill" style="width:'+pct.toFixed(1)+'%; background:var(--oxblood);"></div></div>'
+      + '</div>';
+  }).join('') : '<p style="color:var(--ink-soft);">ไม่พบโครงการที่มีการโอนย้าย/คืนเงินออก (ค่าติดลบ)</p>';
 
   requestAnimationFrame(() => pageContent.classList.add('show'));
 })();
