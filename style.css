@@ -162,6 +162,42 @@ tbody tr:hover{background:#F1F0E4;}
 
 .skip-note{font-size:12px; color:var(--ink-soft); text-align:center; margin:0 0 10px;}
 
+/* ---------- charts.html: donut / compare / ranking ---------- */
+.charts-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px; margin-bottom:34px;}
+.chart-card{background:var(--card); border-radius:6px; padding:20px 22px; border:1px solid var(--rule);}
+.chart-card h3{font-size:15px; margin-bottom:4px;}
+.chart-card .chart-sub{font-size:12px; color:var(--ink-soft); margin:0 0 16px;}
+.donut-block{display:flex; align-items:center; gap:20px; flex-wrap:wrap;}
+.donut-wrap{position:relative; width:150px; height:150px; flex:none;}
+.donut{width:150px; height:150px; border-radius:50%;}
+.donut-hole{
+  position:absolute; inset:22px; background:var(--card); border-radius:50%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+}
+.donut-hole .d-total{font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600; line-height:1.2;}
+.donut-hole .d-label{font-size:10.5px; color:var(--ink-soft); margin-top:2px;}
+.donut-legend{flex:1; min-width:150px; display:flex; flex-direction:column; gap:7px;}
+.donut-legend .leg-row{display:flex; align-items:center; gap:8px; font-size:12.5px;}
+.donut-legend .swatch{width:10px; height:10px; border-radius:2px; flex:none;}
+.donut-legend .leg-name{flex:1;}
+.donut-legend .leg-pct{font-family:'IBM Plex Mono',monospace; color:var(--ink-soft); white-space:nowrap;}
+
+.compare-row{margin-bottom:16px;}
+.compare-row .cmp-label{font-size:13px; font-weight:600; margin-bottom:6px; display:flex; justify-content:space-between;}
+.compare-row .cmp-label .cmp-figs{font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:11.5px; color:var(--ink-soft);}
+.cmp-bar-track{height:14px; background:var(--paper); border:1px solid var(--rule); border-radius:3px; margin-bottom:4px; overflow:hidden;}
+.cmp-bar-fill{height:100%;}
+.cmp-bar-fill.budget{background:repeating-linear-gradient(135deg, var(--ink-soft) 0 4px, transparent 4px 8px); opacity:.35;}
+.cmp-legend-row{display:flex; gap:16px; font-size:11px; color:var(--ink-soft); margin-top:10px;}
+.cmp-legend-row .dot{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:middle;}
+
+.rank-row{margin-bottom:12px;}
+.rank-row .rk-label{display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px; gap:10px;}
+.rank-row .rk-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%;}
+.rank-row .rk-value{font-family:'IBM Plex Mono',monospace; white-space:nowrap; font-weight:600;}
+.rk-track{height:16px; background:var(--paper); border:1px solid var(--rule); border-radius:3px; overflow:hidden;}
+.rk-fill{height:100%; background:var(--moss); border-radius:2px;}
+
 #page-content{opacity:0; transform:translateY(8px); transition:opacity .3s ease, transform .3s ease;}
 #page-content.show{opacity:1; transform:none;}
 @media (prefers-reduced-motion: reduce){ #page-content{transition:none;} .dropzone{transition:none;} }
