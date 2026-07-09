@@ -64,6 +64,17 @@
       </div>
       <p class="row-count" id="rowCount"></p>
     </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>มุมมองข้อความ (คัดลอกส่งต่อได้)</h2>
+        <div class="controls">
+          <button id="copyBtn" class="reset-link" style="cursor:pointer;">📋 คัดลอกรายการ</button>
+        </div>
+      </div>
+      <p class="desc" style="margin:-8px 0 14px;">อัปเดตตามช่องค้นหา/การเรียงลำดับด้านบน — รูปแบบ "รหัส - ชื่อรายการ รวมเงินทั้งสิ้น xxx บาท" พร้อมคัดลอกไปวางแชท/เอกสารได้เลย</p>
+      <div class="table-wrap"><pre id="textListOutput" style="margin:0; padding:16px 18px; font-family:'IBM Plex Sans Thai',sans-serif; font-size:13.5px; white-space:pre-wrap; line-height:1.9;"></pre></div>
+    </section>
   </div>
 </div>
 
@@ -155,6 +166,12 @@
 
     rowCount.textContent = 'พบ ' + rows.length + ' รหัสงบประมาณ (จากทั้งหมด ' + session.rawRows.length + ' แถวข้อมูล)';
 
+    const textList = rows.map((g, i) => {
+      const label = names[g.prefix] || g.sampleDesc || 'ไม่ระบุชื่อ';
+      return (i + 1) + ') ' + g.prefix + ' - ' + label + ' รวมเงินทั้งสิ้น ' + A.fmt(g.actual) + ' บาท';
+    }).join('\n');
+    document.getElementById('textListOutput').textContent = textList || 'ไม่มีข้อมูล';
+
     tableBody.querySelectorAll('[data-toggle]').forEach(btn => {
       btn.addEventListener('click', () => {
         const key = btn.getAttribute('data-toggle');
@@ -177,6 +194,24 @@
     });
   });
   searchInput.addEventListener('input', render);
+
+  document.getElementById('copyBtn').addEventListener('click', () => {
+    const text = document.getElementById('textListOutput').textContent;
+    const btn = document.getElementById('copyBtn');
+    const done = () => { btn.textContent = '✓ คัดลอกแล้ว'; setTimeout(() => { btn.textContent = '📋 คัดลอกรายการ'; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else {
+      fallbackCopy(text, done);
+    }
+  });
+  function fallbackCopy(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
 
   render();
   requestAnimationFrame(() => pageContent.classList.add('show'));
