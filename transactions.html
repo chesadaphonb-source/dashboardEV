@@ -113,9 +113,9 @@
     const shown = rows.slice(0, MAX_RENDER);
     tableBody.innerHTML = shown.map(r => {
       return '<tr>'
-        + '<td class="code-cell">' + (r['โครงการ'] || '') + '</td>'
-        + '<td class="desc-cell">' + (r['คำอธิบาย2'] || r['คำอธิบาย'] || '') + '</td>'
-        + '<td class="code-cell">' + (r['รหัสงบประมาณ'] || '') + '</td>'
+        + '<td class="code-cell">' + A.escapeHtml(r['โครงการ'] || '') + '</td>'
+        + '<td class="desc-cell">' + A.escapeHtml(r['คำอธิบาย2'] || r['คำอธิบาย'] || '') + '</td>'
+        + '<td class="code-cell">' + A.escapeHtml(r['รหัสงบประมาณ'] || '') + '</td>'
         + A.numCell(Number(r['งบประมาณตั้งต้น']) || 0)
         + A.numCell(Number(r['ปรับปรุงงบประมาณ']) || 0)
         + A.numCell(Number(r['โอนย้ายงบประมาณ']) || 0)
@@ -125,7 +125,7 @@
         + A.numCell(Number(r['มูลค่าใบขอซื้อ']) || 0)
         + A.numCell(Number(r['ยอดเงินจริง']) || 0)
         + A.numCell(Number(r['ยอดเงินที่เหลือ']) || 0)
-        + '<td class="code-cell">' + (r.__sheet || '') + '</td>'
+        + '<td class="code-cell">' + A.escapeHtml(r.__sheet || '') + '</td>'
         + '</tr>';
     }).join('') || '<tr><td colspan="13" style="text-align:center; color:var(--ink-soft); padding:20px;">ไม่พบรายการที่ตรงกับเงื่อนไข</td></tr>';
 
