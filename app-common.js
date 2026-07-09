@@ -40,7 +40,7 @@ window.BudgetApp = (function () {
     const d = decimals === undefined ? 0 : decimals;
     const abs = Math.abs(n);
     const s = abs.toLocaleString('th-TH', { minimumFractionDigits: d, maximumFractionDigits: 2 });
-    return n < 0 ? '(' + s + ')' : s;
+    return n < 0 ? '-' + s : s;
   }
 
   function numCell(value, decimals) {
