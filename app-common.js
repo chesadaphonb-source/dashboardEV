@@ -55,6 +55,12 @@ window.BudgetApp = (function () {
     return { label: 'เหลือมาก', cls: 'pill--low' };
   }
 
+  // กัน HTML/ตัวอักษรพิเศษจากไฟล์ Excel (เช่น &, <, >, ") ทำหน้าเพี้ยนตอนแทรกลง innerHTML
+  const ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  function escapeHtml(str) {
+    return String(str === null || str === undefined ? '' : str).replace(/[&<>"']/g, ch => ESCAPE_MAP[ch]);
+  }
+
   // ------------------------------------------------------------------
   // PARSING & AGGREGATION
   // ------------------------------------------------------------------
@@ -62,20 +68,9 @@ window.BudgetApp = (function () {
     return SUMMARY_ROW_NAMES.includes(String(proj).trim().toLowerCase());
   }
 
-  // สร้างคีย์เฉพาะของแถว ใช้เช็คว่าแถวนี้ "ซ้ำ" กับแถวที่เจอไปแล้วในชีทก่อนหน้าหรือไม่
-  // แก้ไข: เดิมใช้แค่ (โครงการ + รหัสงบประมาณ) ซึ่งไม่ unique จริง เพราะโครงการเดียวกัน
-  // มักมีหลายรายการย่อย (เอกสาร/ใบสั่งซื้อคนละใบ) ภายใต้รหัสงบประมาณเดียวกันได้ตามปกติ
-  // ถ้าใช้แค่ 2 คอลัมน์นี้ รายการที่ถูกต้องหลายรายการจะถูกเข้าใจผิดว่าเป็นข้อมูลซ้ำและถูกตัดทิ้ง
-  // จึงรวมค่าตัวเลขทุกคอลัมน์ + คำอธิบายเข้าไปในคีย์ด้วย เพื่อให้ "ซ้ำจริง" เท่านั้นที่ถูกตัด
-  function rowKey(r, proj) {
-    const numsPart = NUM_COLS.map(c => r[c]).join(',');
-    const descPart = String(r['คำอธิบาย2'] || r['คำอธิบาย'] || '').trim();
-    return proj + '|' + String(r['รหัสงบประมาณ'] || '').trim() + '|' + numsPart + '|' + descPart;
-  }
-
   // อ่าน workbook -> คืนแถวดิบทั้งหมด (rawRows) + รายชื่อชีทที่ข้าม (skippedSheets)
   // สำคัญ: บางไฟล์มีชีทที่ export ซ้ำโครงการเดิม (เช่น Sheet2 คัดลอกบางโครงการจาก Sheet1) จึงต้องตัดรายการซ้ำ
-  // ดูฟังก์ชัน rowKey() ด้านบนสำหรับนิยามว่าอะไรคือ "ซ้ำ"
+  // โดยถือว่า (โครงการ + รหัสงบประมาณ) คือกุญแจเฉพาะของแต่ละรายการ — ถ้าเจอคู่นี้ซ้ำในชีทถัดไป จะข้ามแถวนั้นทิ้ง
   function extractRawRows(wb) {
     const rawRows = [];
     const skippedSheets = [];
@@ -84,9 +79,7 @@ window.BudgetApp = (function () {
     wb.SheetNames.forEach(sheetName => {
       const ws = wb.Sheets[sheetName];
       if (!ws) { skippedSheets.push(sheetName); return; } // ชีทอ่านไม่ขึ้น (มักเกิดจากไฟล์บวม)
-      // defval: '' (ไม่ใช่ 0) — สำคัญ: ถ้าใช้ 0 แถวที่ช่อง "โครงการ" ว่างจะถูกเติมเป็นเลข 0
-      // แล้ว String(0) = "0" ซึ่งเป็นค่า truthy จะไม่ถูกกรองทิ้ง กลายเป็นมี "โครงการ" ปลอมชื่อ "0" ปนเข้ามา
-      const json = XLSX.utils.sheet_to_json(ws, { defval: '', raw: true });
+      const json = XLSX.utils.sheet_to_json(ws, { defval: 0, raw: true });
       if (json.length === 0) { skippedSheets.push(sheetName); return; }
       const headers = Object.keys(json[0]).map(h => h.trim());
       const hasAllRequired = REQUIRED_COLS.every(c => headers.includes(c));
@@ -94,7 +87,7 @@ window.BudgetApp = (function () {
       json.forEach(r => {
         const proj = String(r['โครงการ'] || '').trim();
         if (!proj || isSummaryRow(proj)) return; // ตัดแถว "รวม" ทิ้ง
-        const key = rowKey(r, proj);
+        const key = proj + '|' + String(r['รหัสงบประมาณ'] || '').trim();
         if (seenKeys.has(key)) { duplicateCount++; return; } // แถวนี้ซ้ำกับชีทก่อนหน้า ข้ามทิ้ง
         seenKeys.add(key);
         r.__sheet = sheetName;
@@ -249,7 +242,7 @@ window.BudgetApp = (function () {
 
   return {
     NUM_COLS, CATEGORY_NAMES, CATEGORY_COLOR, LARGE_FILE_WARN_MB,
-    fmt, numCell, statusFor,
+    fmt, numCell, statusFor, escapeHtml,
     processWorkbook, computeTotals,
     saveSession, loadSession, clearSession,
     renderNav, renderEmptyState,
