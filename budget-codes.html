@@ -130,7 +130,9 @@
     rows = rows.slice().sort((a, b) => {
       if (sortKey === 'prefix') return a.prefix.localeCompare(b.prefix) * sortDir;
       if (sortKey === 'name') return (names[a.prefix]||a.sampleDesc).localeCompare(names[b.prefix]||b.sampleDesc) * sortDir;
-      if (sortKey === 'projects') return a.projects.size - b.projects.size * sortDir;
+      // แก้ไข: เดิม "a.projects.size - b.projects.size * sortDir" ผิดลำดับการคำนวณ
+      // (ตัวคูณ * ทำงานก่อน - ทำให้ sortDir คูณเฉพาะฝั่ง b) ต้องครอบผลต่างด้วยวงเล็บก่อนคูณ sortDir
+      if (sortKey === 'projects') return (a.projects.size - b.projects.size) * sortDir;
       return ((a[sortKey]||0) - (b[sortKey]||0)) * sortDir;
     });
 
