@@ -89,7 +89,7 @@
     tableBody.innerHTML = rows.map(p => {
       const st = A.statusFor(p.pct, p.budget);
       return '<tr>'
-        + '<td><span class="proj-name">' + p.name + '</span><span class="proj-code">' + p.code + '</span></td>'
+        + '<td><span class="proj-name">' + A.escapeHtml(p.name) + '</span><span class="proj-code">' + A.escapeHtml(p.code) + '</span></td>'
         + '<td><span class="tag-cat">' + p.category + '</span></td>'
         + A.numCell(p['งบประมาณตั้งต้น'])
         + A.numCell(p['ปรับปรุงงบประมาณ'])
