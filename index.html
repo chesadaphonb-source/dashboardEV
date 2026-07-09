@@ -26,12 +26,32 @@
       <p id="fileMeta" class="file-meta" hidden></p>
     </header>
 
+    <section class="hero" id="heroSection" hidden>
+      <div class="hero-flow">
+        <div class="hero-item">
+          <p class="hero-label">งบประมาณตั้งต้น</p>
+          <p class="hero-value" id="heroStart">—</p>
+        </div>
+        <div class="hero-arrow">→</div>
+        <div class="hero-item">
+          <p class="hero-label">ใช้ไปแล้ว</p>
+          <p class="hero-value used" id="heroUsed">—</p>
+        </div>
+        <div class="hero-arrow">→</div>
+        <div class="hero-item">
+          <p class="hero-label">คงเหลือ</p>
+          <p class="hero-value remain" id="heroRemain">—</p>
+        </div>
+      </div>
+      <p class="hero-caption">ตัวเลข "คงเหลือ" คำนวณหลังหักรายการปรับปรุง/โอนย้ายงบประมาณแล้ว ถ้าอยากรู้ว่างบตั้งต้นหายไปไหนบ้าง ดูที่หัวข้อ <a href="#waterfallPanel">รายละเอียดการปรับปรุงงบประมาณ</a> ด้านล่าง</p>
+    </section>
+
     <section class="kpis" id="kpis"></section>
 
     <section class="panel" id="waterfallPanel" hidden>
       <div class="panel-head">
-        <h2>จากงบประมาณตั้งต้น สู่งบประมาณสุทธิ</h2>
-        <p class="desc">แสดงทุกขั้นที่ทำให้งบเปลี่ยนไป — แท่งสีแดง = ถูกหัก/โอนออก, แท่งสีเขียว = เพิ่มเข้ามา, แท่งสีเข้ม = ยอดรวม ณ จุดนั้น</p>
+        <h2>รายละเอียดการปรับปรุงงบประมาณ (+/-)</h2>
+        <p class="desc">แสดงทุกขั้นที่ทำให้งบเปลี่ยนไปจากงบตั้งต้น — แท่งสีแดง = ถูกหัก/โอนออก, แท่งสีเขียว = เพิ่มเข้ามา, แท่งสีเข้ม = ยอดรวม ณ จุดนั้น</p>
       </div>
       <div class="chart-card" id="waterfallChart"></div>
     </section>
@@ -58,6 +78,10 @@
   const fileMeta = document.getElementById('fileMeta');
   const pageContent = document.getElementById('page-content');
   const kpisEl = document.getElementById('kpis');
+  const heroSection = document.getElementById('heroSection');
+  const heroStart = document.getElementById('heroStart');
+  const heroUsed = document.getElementById('heroUsed');
+  const heroRemain = document.getElementById('heroRemain');
   const waterfallPanel = document.getElementById('waterfallPanel');
   const waterfallChart = document.getElementById('waterfallChart');
   const chartPanel = document.getElementById('chartPanel');
@@ -92,7 +116,8 @@
           const result = A.processWorkbook(wb);
           session = {
             fileName: file.name, fileSizeMB: mb,
-            rawRows: result.rawRows, skippedSheets: result.skippedSheets, projectRows: result.projectRows
+            rawRows: result.rawRows, skippedSheets: result.skippedSheets,
+            duplicateCount: result.duplicateCount, projectRows: result.projectRows
           };
           A.saveSession(session);
           A.renderNav('overview', session);
@@ -109,9 +134,11 @@
   function renderAll(s) {
     fileMeta.hidden = false;
     fileMeta.innerHTML = 'ไฟล์: <strong>' + s.fileName + '</strong> (' + s.fileSizeMB.toFixed(1) + ' MB) · ' + s.projectRows.length + ' โครงการ · ' + s.rawRows.length + ' แถวข้อมูล';
-    skipNote.innerHTML = s.skippedSheets.length
-      ? 'ไม่ได้รวมชีท: ' + s.skippedSheets.join(', ') + ' — มักเกิดจากชีทมีขนาดใหญ่ผิดปกติ (จัดรูปแบบเกินขอบเขตข้อมูลจริง) ดูวิธีแก้ใน README'
-      : '';
+    skipNote.innerHTML = (s.skippedSheets.length
+      ? 'ไม่ได้รวมชีท: ' + s.skippedSheets.join(', ') + ' — มักเกิดจากชีทมีขนาดใหญ่ผิดปกติ (จัดรูปแบบเกินขอบเขตข้อมูลจริง) ดูวิธีแก้ใน README<br>'
+      : '') + (s.duplicateCount
+      ? 'พบและตัดรายการซ้ำข้ามชีทออก ' + s.duplicateCount + ' แถว (โครงการ/รหัสงบประมาณเดียวกันถูก export ซ้ำในหลายชีท)'
+      : '');
 
     const t = A.computeTotals(s.projectRows);
     const pct = t.budget > 0 ? (t.actual / t.budget * 100) : 0;
