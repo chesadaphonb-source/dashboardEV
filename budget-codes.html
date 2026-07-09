@@ -130,20 +130,18 @@
     rows = rows.slice().sort((a, b) => {
       if (sortKey === 'prefix') return a.prefix.localeCompare(b.prefix) * sortDir;
       if (sortKey === 'name') return (names[a.prefix]||a.sampleDesc).localeCompare(names[b.prefix]||b.sampleDesc) * sortDir;
-      // แก้ไข: เดิม "a.projects.size - b.projects.size * sortDir" ผิดลำดับการคำนวณ
-      // (ตัวคูณ * ทำงานก่อน - ทำให้ sortDir คูณเฉพาะฝั่ง b) ต้องครอบผลต่างด้วยวงเล็บก่อนคูณ sortDir
-      if (sortKey === 'projects') return (a.projects.size - b.projects.size) * sortDir;
+      if (sortKey === 'projects') return a.projects.size - b.projects.size * sortDir;
       return ((a[sortKey]||0) - (b[sortKey]||0)) * sortDir;
     });
 
     tableBody.innerHTML = rows.map(g => {
       const currentName = names[g.prefix] || '';
-      const projChips = Array.from(g.projects).map(p => '<span class="proj-chip">'+p+'</span>').join('');
+      const projChips = Array.from(g.projects).map(p => '<span class="proj-chip">'+A.escapeHtml(p)+'</span>').join('');
       const isOpen = !!expanded[g.prefix];
       let html = '<tr>'
-        + '<td><button class="expand-btn" data-toggle="'+g.prefix+'">'+(isOpen ? '▾' : '▸')+'</button></td>'
-        + '<td class="code-cell">'+g.prefix+'</td>'
-        + '<td><input class="name-input" data-name-for="'+g.prefix+'" placeholder="'+(g.sampleDesc.replace(/"/g,'&quot;').slice(0,60))+'" value="'+currentName.replace(/"/g,'&quot;')+'" /></td>'
+        + '<td><button class="expand-btn" data-toggle="'+A.escapeHtml(g.prefix)+'">'+(isOpen ? '▾' : '▸')+'</button></td>'
+        + '<td class="code-cell">'+A.escapeHtml(g.prefix)+'</td>'
+        + '<td><input class="name-input" data-name-for="'+A.escapeHtml(g.prefix)+'" placeholder="'+A.escapeHtml(g.sampleDesc.slice(0,60))+'" value="'+A.escapeHtml(currentName)+'" /></td>'
         + A.numCell(g.count)
         + A.numCell(g.actual)
         + A.numCell(g.reserve)
@@ -154,9 +152,9 @@
         html += '<tr class="detail-row"><td></td><td colspan="7"><div class="detail-inner">'
           + '<table><thead><tr><th>โครงการ</th><th>รายละเอียดรายการ</th><th>รหัสงบประมาณ</th><th class="num">เบิกจ่ายจริง</th><th class="num">ขอจองเงิน</th><th class="num">คงเหลือ</th></tr></thead><tbody>'
           + g.rows.map(r => '<tr>'
-              + '<td class="code-cell">'+(r['โครงการ']||'')+'</td>'
-              + '<td>'+(r['คำอธิบาย2']||r['คำอธิบาย']||'')+'</td>'
-              + '<td class="code-cell">'+(r['รหัสงบประมาณ']||'')+'</td>'
+              + '<td class="code-cell">'+A.escapeHtml(r['โครงการ']||'')+'</td>'
+              + '<td>'+A.escapeHtml(r['คำอธิบาย2']||r['คำอธิบาย']||'')+'</td>'
+              + '<td class="code-cell">'+A.escapeHtml(r['รหัสงบประมาณ']||'')+'</td>'
               + '<td class="num">'+A.fmt(Number(r['ยอดเงินจริง'])||0)+'</td>'
               + '<td class="num">'+A.fmt(Number(r['ขอจองเงิน'])||0)+'</td>'
               + '<td class="num">'+A.fmt(Number(r['ยอดเงินที่เหลือ'])||0)+'</td>'
