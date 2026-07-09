@@ -63,9 +63,13 @@ window.BudgetApp = (function () {
   }
 
   // อ่าน workbook -> คืนแถวดิบทั้งหมด (rawRows) + รายชื่อชีทที่ข้าม (skippedSheets)
+  // สำคัญ: บางไฟล์มีชีทที่ export ซ้ำโครงการเดิม (เช่น Sheet2 คัดลอกบางโครงการจาก Sheet1) จึงต้องตัดรายการซ้ำ
+  // โดยถือว่า (โครงการ + รหัสงบประมาณ) คือกุญแจเฉพาะของแต่ละรายการ — ถ้าเจอคู่นี้ซ้ำในชีทถัดไป จะข้ามแถวนั้นทิ้ง
   function extractRawRows(wb) {
     const rawRows = [];
     const skippedSheets = [];
+    const seenKeys = new Set();
+    let duplicateCount = 0;
     wb.SheetNames.forEach(sheetName => {
       const ws = wb.Sheets[sheetName];
       if (!ws) { skippedSheets.push(sheetName); return; } // ชีทอ่านไม่ขึ้น (มักเกิดจากไฟล์บวม)
@@ -77,11 +81,14 @@ window.BudgetApp = (function () {
       json.forEach(r => {
         const proj = String(r['โครงการ'] || '').trim();
         if (!proj || isSummaryRow(proj)) return; // ตัดแถว "รวม" ทิ้ง
+        const key = proj + '|' + String(r['รหัสงบประมาณ'] || '').trim();
+        if (seenKeys.has(key)) { duplicateCount++; return; } // แถวนี้ซ้ำกับชีทก่อนหน้า ข้ามทิ้ง
+        seenKeys.add(key);
         r.__sheet = sheetName;
         rawRows.push(r);
       });
     });
-    return { rawRows, skippedSheets };
+    return { rawRows, skippedSheets, duplicateCount };
   }
 
   // หาหมวดงบประมาณ + ชื่อโครงการ จากคำอธิบายของแถวตั้งต้นของแต่ละโครงการ
@@ -136,10 +143,10 @@ window.BudgetApp = (function () {
 
   // ทำงานทั้งหมดตั้งแต่ workbook -> ผลลัพธ์พร้อมใช้
   function processWorkbook(wb) {
-    const { rawRows, skippedSheets } = extractRawRows(wb);
+    const { rawRows, skippedSheets, duplicateCount } = extractRawRows(wb);
     const { categoryMap, nameMap } = buildCategoryAndNameMaps(rawRows);
     const projectRows = aggregateByProject(rawRows, categoryMap, nameMap);
-    return { rawRows, skippedSheets, projectRows };
+    return { rawRows, skippedSheets, duplicateCount, projectRows };
   }
 
   // ------------------------------------------------------------------
@@ -183,6 +190,7 @@ window.BudgetApp = (function () {
         '<div class="tabs">' +
           tab('index.html', 'ภาพรวม', 'overview') +
           tab('charts.html', 'กราฟเปรียบเทียบ', 'charts') +
+          tab('budget-codes.html', 'สรุปตามรหัสงบประมาณ', 'budgetcodes') +
           tab('projects.html', 'รายการโครงการ', 'projects') +
           tab('transactions.html', 'รายการธุรกรรมย่อย', 'transactions') +
         '</div>' +
@@ -199,11 +207,39 @@ window.BudgetApp = (function () {
       '<a href="index.html">หน้าแรก (ภาพรวม)</a> ก่อน</div>';
   }
 
+  // ------------------------------------------------------------------
+  // BUDGET CODE ROLLUP HELPERS — สำหรับหน้า "สรุปตามรหัสงบประมาณ"
+  // รหัสงบประมาณ เช่น "5120106-692B15PG00010" -> prefix คือ "5120106"
+  // โค้ดเปล่าๆ ไม่มี "-ตามด้วยตัวอักษร" (เช่น "5120135" เดี่ยวๆ) ถือว่าเป็นแถวตั้งต้น/placeholder ไม่นับรวม
+  // ------------------------------------------------------------------
+  function extractCodePrefix(rawCode) {
+    const code = String(rawCode || '').trim();
+    const idx = code.indexOf('-');
+    if (idx <= 0) return null;               // ไม่มีขีด หรือขีดอยู่ตำแหน่งแรก -> ไม่ใช่รูปแบบที่ต้องการ
+    const after = code.slice(idx + 1).trim();
+    if (!after) return null;                 // มีขีดแต่ไม่มีอะไรตามหลัง -> ไม่นับ
+    return code.slice(0, idx).trim();
+  }
+
+  const CODE_NAME_KEY = 'budgetCodeNames_v1'; // localStorage: อยู่ถาวรข้ามการอัปโหลดไฟล์ใหม่ (ต่างจาก sessionStorage ของข้อมูลไฟล์)
+  function loadCodeNames() {
+    try { return JSON.parse(localStorage.getItem(CODE_NAME_KEY) || '{}'); } catch (e) { return {}; }
+  }
+  function saveCodeName(prefix, name) {
+    try {
+      const map = loadCodeNames();
+      if (name && name.trim()) map[prefix] = name.trim(); else delete map[prefix];
+      localStorage.setItem(CODE_NAME_KEY, JSON.stringify(map));
+      return true;
+    } catch (e) { return false; }
+  }
+
   return {
     NUM_COLS, CATEGORY_NAMES, CATEGORY_COLOR, LARGE_FILE_WARN_MB,
     fmt, numCell, statusFor,
     processWorkbook, computeTotals,
     saveSession, loadSession, clearSession,
-    renderNav, renderEmptyState
+    renderNav, renderEmptyState,
+    extractCodePrefix, loadCodeNames, saveCodeName
   };
 })();
