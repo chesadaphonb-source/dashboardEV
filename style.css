@@ -215,6 +215,28 @@ tbody tr:hover{background:#F1F0E4;}
 .wf-fill.pos{background:var(--moss);}
 .wf-fill.neg{background:var(--oxblood);}
 
+/* ---------- hero (ตั้งต้น → ใช้ไป → คงเหลือ) ---------- */
+.hero{margin:8px 0 30px;}
+.hero-flow{
+  display:flex; align-items:center; justify-content:center; gap:20px; flex-wrap:wrap;
+  background:var(--card); border:1px solid var(--rule); border-radius:8px; padding:28px 24px;
+}
+.hero-item{text-align:center; min-width:140px;}
+.hero-item .hero-label{font-size:13px; color:var(--ink-soft); margin:0 0 8px;}
+.hero-item .hero-value{
+  font-family:'IBM Plex Mono',monospace; font-size:clamp(20px,3.6vw,30px); font-weight:700;
+  color:var(--ink); margin:0; line-height:1.15; white-space:nowrap;
+}
+.hero-item .hero-value.used{color:var(--slate);}
+.hero-item .hero-value.remain{color:var(--moss);}
+.hero-arrow{font-size:22px; color:var(--rule); flex:none;}
+.hero-caption{text-align:center; font-size:12.5px; color:var(--ink-soft); margin:14px 6px 0;}
+.hero-caption a{font-weight:600;}
+@media (max-width:640px){
+  .hero-flow{flex-direction:column;}
+  .hero-arrow{transform:rotate(90deg);}
+}
+
 #page-content{opacity:0; transform:translateY(8px); transition:opacity .3s ease, transform .3s ease;}
 #page-content.show{opacity:1; transform:none;}
 @media (prefers-reduced-motion: reduce){ #page-content{transition:none;} .dropzone{transition:none;} }
