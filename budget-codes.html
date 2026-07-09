@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>สมุดบัญชีงบประมาณ · สรุปตามรหัสงบประมาณ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .name-input{
+    width:100%; min-width:160px; border:1px solid transparent; background:transparent;
+    font-family:'IBM Plex Sans Thai',sans-serif; font-size:13.5px; color:var(--ink); padding:3px 5px; border-radius:3px;
+  }
+  .name-input:hover, .name-input:focus{border-color:var(--rule); background:var(--paper);}
+  .name-input::placeholder{color:var(--ink-soft); font-style:italic;}
+  .expand-btn{
+    background:none; border:none; cursor:pointer; color:var(--ink-soft); font-size:13px; padding:2px 4px;
+  }
+  .detail-row td{background:var(--paper); padding:0;}
+  .detail-inner{padding:10px 16px; font-size:12.5px;}
+  .detail-inner table{width:100%; margin-top:4px;}
+  .detail-inner th{font-size:11px; padding:5px 8px; border-bottom:1px solid var(--rule); text-align:left; position:static;}
+  .detail-inner th.num{text-align:right;}
+  .detail-inner td{padding:5px 8px; border-bottom:1px solid #E4E4D6;}
+  .detail-inner td.num{text-align:right; font-family:'IBM Plex Mono',monospace;}
+  .proj-chip{display:inline-block; font-size:10.5px; background:rgba(0,0,0,.05); padding:1px 6px; border-radius:3px; margin:1px 2px 1px 0;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="navPlaceholder"></div>
+
+  <div id="page-content">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>สรุปตามรหัสงบประมาณ (รหัสย่อย)</h2>
+        <div class="controls">
+          <input id="searchInput" type="search" placeholder="ค้นหารหัส/ชื่อรายการ/โครงการ…" />
+        </div>
+      </div>
+      <p class="desc" style="margin:-8px 0 14px;">
+        จัดกลุ่มรายการย่อยตามรหัสตัวเลขข้างหน้าของ "รหัสงบประมาณ" (เช่น <code>5120106</code> จาก <code>5120106-692B15PG00010</code>)
+        แล้วรวมยอดเบิกจ่ายจริงของทุกรายการที่มีรหัสเดียวกัน — รายการที่เป็นรหัสเปล่าไม่มีส่วนต่อท้าย (เช่น <code>5120135</code> อย่างเดียว) จะไม่ถูกนับรวม
+        พิมพ์ชื่อรายการเองในช่อง "ชื่อรายการ" ได้ ระบบจะจำไว้ในเบราว์เซอร์นี้ให้อัตโนมัติ (ใช้ได้ต่อแม้อัปโหลดไฟล์เดือนถัดไป)
+      </p>
+      <div class="table-wrap">
+        <table id="codeTable">
+          <thead>
+            <tr>
+              <th style="width:24px;"></th>
+              <th data-key="prefix">รหัส</th>
+              <th data-key="name">ชื่อรายการ (แก้ไขได้)</th>
+              <th data-key="count" class="num">จำนวนรายการ</th>
+              <th data-key="actual" class="num">รวมเบิกจ่ายจริง</th>
+              <th data-key="reserve" class="num">รวมขอจองเงิน</th>
+              <th data-key="remaining" class="num">คงเหลือ/รอเบิก</th>
+              <th data-key="projects">โครงการที่เกี่ยวข้อง</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="row-count" id="rowCount"></p>
+    </section>
+  </div>
+</div>
+
+<script src="app-common.js"></script>
+<script>
+(function(){
+  const A = window.BudgetApp;
+  const session = A.loadSession();
+  A.renderNav('budgetcodes', session);
+  const pageContent = document.getElementById('page-content');
+
+  if (!session) {
+    A.renderEmptyState(pageContent);
+    pageContent.classList.add('show');
+    return;
+  }
+
+  // ---------------- Build groups by code prefix ----------------
+  const groups = {};
+  session.rawRows.forEach(r => {
+    const prefix = A.extractCodePrefix(r['รหัสงบประมาณ']);
+    if (!prefix) return;
+    if (!groups[prefix]) {
+      groups[prefix] = { prefix, count: 0, actual: 0, reserve: 0, remaining: 0, projects: new Set(), rows: [], sampleDesc: '' };
+    }
+    const g = groups[prefix];
+    g.count += 1;
+    g.actual += Number(r['ยอดเงินจริง']) || 0;
+    g.reserve += Number(r['ขอจองเงิน']) || 0;
+    g.remaining += Number(r['ยอดเงินที่เหลือ']) || 0;
+    g.projects.add(String(r['โครงการ'] || ''));
+    g.rows.push(r);
+    if (!g.sampleDesc) g.sampleDesc = String(r['คำอธิบาย2'] || r['คำอธิบาย'] || '').trim();
+  });
+  const groupList = Object.values(groups);
+
+  const tableBody = document.querySelector('#codeTable tbody');
+  const searchInput = document.getElementById('searchInput');
+  const rowCount = document.getElementById('rowCount');
+  let sortKey = 'actual', sortDir = -1;
+  let expanded = {}; // prefix -> bool
+
+  function render() {
+    const q = (searchInput.value || '').trim().toLowerCase();
+    const names = A.loadCodeNames();
+    let rows = groupList.filter(g => {
+      if (!q) return true;
+      const name = (names[g.prefix] || g.sampleDesc || '').toLowerCase();
+      return g.prefix.toLowerCase().indexOf(q) !== -1
+        || name.indexOf(q) !== -1
+        || Array.from(g.projects).some(p => p.toLowerCase().indexOf(q) !== -1);
+    });
+    rows = rows.slice().sort((a, b) => {
+      if (sortKey === 'prefix') return a.prefix.localeCompare(b.prefix) * sortDir;
+      if (sortKey === 'name') return (names[a.prefix]||a.sampleDesc).localeCompare(names[b.prefix]||b.sampleDesc) * sortDir;
+      if (sortKey === 'projects') return a.projects.size - b.projects.size * sortDir;
+      return ((a[sortKey]||0) - (b[sortKey]||0)) * sortDir;
+    });
+
+    tableBody.innerHTML = rows.map(g => {
+      const currentName = names[g.prefix] || '';
+      const projChips = Array.from(g.projects).map(p => '<span class="proj-chip">'+p+'</span>').join('');
+      const isOpen = !!expanded[g.prefix];
+      let html = '<tr>'
+        + '<td><button class="expand-btn" data-toggle="'+g.prefix+'">'+(isOpen ? '▾' : '▸')+'</button></td>'
+        + '<td class="code-cell">'+g.prefix+'</td>'
+        + '<td><input class="name-input" data-name-for="'+g.prefix+'" placeholder="'+(g.sampleDesc.replace(/"/g,'&quot;').slice(0,60))+'" value="'+currentName.replace(/"/g,'&quot;')+'" /></td>'
+        + A.numCell(g.count)
+        + A.numCell(g.actual)
+        + A.numCell(g.reserve)
+        + A.numCell(g.remaining)
+        + '<td style="max-width:220px;">'+projChips+'</td>'
+        + '</tr>';
+      if (isOpen) {
+        html += '<tr class="detail-row"><td></td><td colspan="7"><div class="detail-inner">'
+          + '<table><thead><tr><th>โครงการ</th><th>รายละเอียดรายการ</th><th>รหัสงบประมาณ</th><th class="num">เบิกจ่ายจริง</th><th class="num">ขอจองเงิน</th><th class="num">คงเหลือ</th></tr></thead><tbody>'
+          + g.rows.map(r => '<tr>'
+              + '<td class="code-cell">'+(r['โครงการ']||'')+'</td>'
+              + '<td>'+(r['คำอธิบาย2']||r['คำอธิบาย']||'')+'</td>'
+              + '<td class="code-cell">'+(r['รหัสงบประมาณ']||'')+'</td>'
+              + '<td class="num">'+A.fmt(Number(r['ยอดเงินจริง'])||0)+'</td>'
+              + '<td class="num">'+A.fmt(Number(r['ขอจองเงิน'])||0)+'</td>'
+              + '<td class="num">'+A.fmt(Number(r['ยอดเงินที่เหลือ'])||0)+'</td>'
+              + '</tr>').join('')
+          + '</tbody></table></div></td></tr>';
+      }
+      return html;
+    }).join('') || '<tr><td colspan="8" style="text-align:center; color:var(--ink-soft); padding:20px;">ไม่พบรายการที่ตรงกับเงื่อนไข</td></tr>';
+
+    rowCount.textContent = 'พบ ' + rows.length + ' รหัสงบประมาณ (จากทั้งหมด ' + session.rawRows.length + ' แถวข้อมูล)';
+
+    tableBody.querySelectorAll('[data-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-toggle');
+        expanded[key] = !expanded[key];
+        render();
+      });
+    });
+    tableBody.querySelectorAll('[data-name-for]').forEach(inp => {
+      inp.addEventListener('change', () => {
+        A.saveCodeName(inp.getAttribute('data-name-for'), inp.value);
+      });
+    });
+  }
+
+  document.querySelectorAll('#codeTable thead th[data-key]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (key === sortKey) sortDir *= -1; else { sortKey = key; sortDir = (key === 'prefix' || key === 'name') ? 1 : -1; }
+      render();
+    });
+  });
+  searchInput.addEventListener('input', render);
+
+  render();
+  requestAnimationFrame(() => pageContent.classList.add('show'));
+})();
+</script>
+</body>
+</html>
