@@ -142,6 +142,12 @@
 
     const t = A.computeTotals(s.projectRows);
     const pct = t.budget > 0 ? (t.actual / t.budget * 100) : 0;
+
+    heroSection.hidden = false;
+    heroStart.textContent = A.fmt(t.budgetStart) + ' บาท';
+    heroUsed.textContent = A.fmt(t.actual) + ' บาท';
+    heroRemain.textContent = A.fmt(t.remaining) + ' บาท';
+
     kpisEl.innerHTML = [
       ['งบประมาณสุทธิ', A.fmt(t.budget), 'บาท'],
       ['เบิกจ่ายจริงสะสม', A.fmt(t.actual), 'บาท'],
