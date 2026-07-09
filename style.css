@@ -168,14 +168,18 @@ tbody tr:hover{background:#F1F0E4;}
 .chart-card h3{font-size:15px; margin-bottom:4px;}
 .chart-card .chart-sub{font-size:12px; color:var(--ink-soft); margin:0 0 16px;}
 .donut-block{display:flex; align-items:center; gap:20px; flex-wrap:wrap;}
-.donut-wrap{position:relative; width:150px; height:150px; flex:none;}
-.donut{width:150px; height:150px; border-radius:50%;}
+.donut-wrap{position:relative; width:168px; height:168px; flex:none;}
+.donut{width:168px; height:168px; border-radius:50%;}
 .donut-hole{
-  position:absolute; inset:22px; background:var(--card); border-radius:50%;
+  position:absolute; inset:20px; background:var(--card); border-radius:50%;
   display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+  padding:6px; overflow:hidden;
 }
-.donut-hole .d-total{font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600; line-height:1.2;}
-.donut-hole .d-label{font-size:10.5px; color:var(--ink-soft); margin-top:2px;}
+.donut-hole .d-total{
+  font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; line-height:1.25;
+  max-width:100%; overflow-wrap:anywhere; word-break:break-word;
+}
+.donut-hole .d-label{font-size:10px; color:var(--ink-soft); margin-top:3px;}
 .donut-legend{flex:1; min-width:150px; display:flex; flex-direction:column; gap:7px;}
 .donut-legend .leg-row{display:flex; align-items:center; gap:8px; font-size:12.5px;}
 .donut-legend .swatch{width:10px; height:10px; border-radius:2px; flex:none;}
